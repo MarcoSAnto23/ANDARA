@@ -1,37 +1,46 @@
+// src/components/layout/Sidebar.tsx
 "use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Map, Calendar as CalendarIcon, Users, Settings } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Calendar as CalendarIcon, Users, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { logout } from "@/app/login/actions"
 import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Mis Tours", href: "/tours", icon: Map },
-  { name: "Disponibilidad", href: "/calendar", icon: CalendarIcon },
+  { name: "Inbox Social", href: "/inbox", icon: MessageSquare },
   { name: "Leads CRM", href: "/crm", icon: Users },
+  { name: "Calendario", href: "/calendar", icon: CalendarIcon },
   { name: "Configuración", href: "/settings", icon: Settings },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [user, setUser] = useState<{name: string, email: string} | null>(null)
+  const [guideProfile, setGuideProfile] = useState<{name: string, email: string}>({
+    name: 'Guía Demo',
+    email: 'guia@andara.pe'
+  })
+
+  const loadProfile = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setGuideProfile({
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Guía Demo',
+        email: user.email || 'guia@andara.pe'
+      })
+    }
+  }
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const match = document.cookie.match(new RegExp('(^| )andara_session=([^;]+)'))
-      if (match) {
-        try {
-          const decoded = atob(match[2])
-          const session = JSON.parse(decoded)
-          setUser(session)
-        } catch (e) {
-          console.error('Failed to parse session cookie', e)
-        }
-      }
+    loadProfile()
+    window.addEventListener('andara_db_update', loadProfile)
+    return () => {
+      window.removeEventListener('andara_db_update', loadProfile)
     }
   }, [])
 
@@ -80,15 +89,15 @@ export function Sidebar() {
       <div className="border-t border-border/50 p-4 pb-8 space-y-4">
         <div className="flex items-center p-2 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-secondary to-amber-500 flex items-center justify-center text-white font-bold text-sm shadow-md border border-white/20">
-            {user ? user.name.charAt(0).toUpperCase() : 'G'}
+            {guideProfile.name.charAt(0).toUpperCase()}
           </div>
           <div className="ml-3 overflow-hidden">
-            <p className="text-sm font-medium text-foreground truncate">{user ? user.name : 'Guía Demo'}</p>
-            <p className="text-xs text-muted-foreground truncate">{user ? user.email : 'guia@andara.pe'}</p>
+            <p className="text-sm font-medium text-foreground truncate">{guideProfile.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{guideProfile.email}</p>
           </div>
         </div>
         <form action={logout}>
-          <button type="submit" className="w-full text-left px-3 py-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors">
+          <button type="submit" className="w-full text-left px-3 py-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer">
             Cerrar Sesión
           </button>
         </form>
